@@ -5,17 +5,17 @@ drop table if exists t_room;
 drop table if exists t_user;
 
 create table t_user (
-  id        serial       primary key,
-  name      varchar(50)  not null,
-  email     varchar(50)  unique not null,
-  password  varchar(16)  not null,
+  id        serial        primary key,
+  name      varchar(50)   not null,
+  email     varchar(50)   unique not null,
+  password  varchar(102)  not null,
   photo_url varchar(100)
 );
 
 create table t_room (
-  id        serial      primary key,
-  name      varchar(30) not null,
-  ownder_id int         not null references t_user(id)
+  id       serial      primary key,
+  name     varchar(30) not null,
+  owner_id int         not null references t_user(id)
 );
 
 create table t_room_user_assoc (
@@ -26,7 +26,7 @@ create table t_room_user_assoc (
 );
 
 create table t_cheque (
-  id       int         primary key,
+  id       serial      primary key,
   room_id  int         not null references t_room(id),
   owner_id int         not null references t_user(id),
   name     varchar(30) not null

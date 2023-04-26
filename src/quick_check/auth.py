@@ -12,7 +12,7 @@ from .support_functions import fetchone_by_pattern_attribute_value, \
 from . import constants
 
 
-bp = Blueprint('api', __name__, url_prefix='/api')
+bp = Blueprint('auth', __name__, url_prefix='/api')
 
 JWT_ALGORITHM = 'HS256'
 
@@ -21,6 +21,7 @@ FIELD_TOKEN = constants.FIELD_TOKEN
 FIELD_MESSAGE = constants.FIELD_MESSAGE
 
 FIELD_USERNAME = 'username'
+FIELD_ID = 'id'
 FIELD_PASSWORD = 'password'
 FIELD_EMAIL = 'email'
 FIELD_EXPIRES = 'expires'
@@ -35,14 +36,13 @@ MAX_PASSWORD = 16
 MIN_PASSWORD = 8
 
 MAX_EMAIL = 40
+MIN_EMAIL = 3
 
 REGEX_PASSWORD = re.compile(r'[A-za-z0-9]+')
 REGEX_USERNAME = re.compile(r'[a-zA-z0-9]+')
 REGEX_EMAIL = re.compile(
     r'([A-Za-z0-9]+[.-_])*[A-Za-z0-9]+@[A-Za-z0-9-]+(\.[A-Z|a-z]{2,})+'
 )
-
-DB_TABLE_USERS = 'users_list'
 
 TOKEN_VALID = {
     FIELD_STATUS: STATUS_OK,
@@ -57,7 +57,7 @@ TOKEN_EXPIRED = {
     FIELD_MESSAGE: 'token expired'
 }
 
-DB_TABLE_USERS = 'users_list'
+DB_TABLE_USERS = 't_user'
 
 @bp.post('/register')
 def register():
@@ -69,67 +69,29 @@ def register():
     password = str(request.json[FIELD_PASSWORD])
     email = str(request.json[FIELD_EMAIL])
 
-    if len(username) < MIN_USERNAME:
+    def check_field(field, fregx, fmin, fmax, fname):
+      if not re.fullmatch(fregx, field) or len(field) < fmin or len(field) > fmax:
         response = {
-            FIELD_STATUS: STATUS_BAD,
-            FIELD_MESSAGE: 'username is too small',
+          FIELD_STATUS: STATUS_BAD,
+          FIELD_MESSAGE: f'{fname} is not valid'
         }
         return jsonify(response), 400
 
-    if len(username) > MAX_USERNAME:
-        response = {
-            FIELD_STATUS: STATUS_BAD,
-            FIELD_MESSAGE: 'username is too big'
-        }
-        return jsonify(response), 400
-
-    if len(password) < MIN_PASSWORD:
-        response = {
-            FIELD_STATUS: STATUS_BAD,
-            FIELD_MESSAGE: 'password is too small'
-        }
-        return jsonify(response), 400
-
-    if len(password) > MAX_PASSWORD:
-        response = {
-            FIELD_STATUS: STATUS_BAD,
-            FIELD_MESSAGE: 'password is too big'
-        }
-        return jsonify(response), 400
-
-    if len(email) > MAX_EMAIL:
-        response = {
-            FIELD_STATUS: STATUS_BAD,
-            FIELD_MESSAGE: 'email is too big'
-        }
-        return jsonify(response), 400
-
-    if not re.fullmatch(REGEX_PASSWORD, password):
-        response = {
-            FIELD_STATUS: STATUS_BAD,
-            FIELD_MESSAGE: 'password is not valid'
-        }
-        return jsonify(response), 400
-
-    if not re.fullmatch(REGEX_USERNAME, username):
-        response = {
-            FIELD_STATUS: STATUS_BAD,
-            FIELD_MESSAGE: 'username is not valid'
-        }
-        return jsonify(response), 400
-
-    if not re.fullmatch(REGEX_EMAIL, email):
-        response = {
-            FIELD_STATUS: STATUS_BAD,
-            FIELD_MESSAGE: 'email is not valid'
-        }
-        return jsonify(response), 400
+    response = check_field(password, REGEX_PASSWORD, MIN_PASSWORD, MAX_PASSWORD, FIELD_PASSWORD)
+    if not response is None:
+        return response
+    response = check_field(username, REGEX_USERNAME, MIN_USERNAME, MAX_USERNAME, FIELD_USERNAME);
+    if not response is None:
+        return response
+    response = check_field(email, REGEX_EMAIL, MIN_EMAIL, MAX_EMAIL, FIELD_EMAIL);
+    if not response is None:
+        return response
 
     db = get_db()
     try:
         db.cursor().execute(
-            "INSERT INTO users_list (username, password, email)"
-            "VALUES (%s, %s, %s)",
+            f"insert into {DB_TABLE_USERS} (name, password, email)"
+            "values (%s, %s, %s)",
             (username, generate_password_hash(password), email)
         )
         db.commit()
@@ -171,8 +133,10 @@ def login():
     username = str(request.json[FIELD_USERNAME])
     password = str(request.json[FIELD_PASSWORD])
 
-    query = f"SELECT * FROM {DB_TABLE_USERS} WHERE username = '{username}';"
-    user = fetchone_by_pattern_attribute_value(DB_TABLE_USERS, query)
+    user = fetchone_by_pattern_attribute_value(
+        DB_TABLE_USERS,
+        f"SELECT * FROM {DB_TABLE_USERS} WHERE name = '{username}';"
+    )
 
     if not is_user_correct(user, password):
         response = {
@@ -183,6 +147,7 @@ def login():
 
     token = jwt.encode(
         {
+            FIELD_ID: user[FIELD_ID],
             FIELD_USERNAME: username,
             FIELD_EXPIRES: str(datetime.datetime.utcnow() +
                                datetime.timedelta(minutes=10000))
@@ -194,18 +159,15 @@ def login():
     response = {
         FIELD_STATUS: STATUS_OK,
         FIELD_MESSAGE: 'logged in, token generated',
-        FIELD_TOKEN: token
+        FIELD_TOKEN: token,
+        FIELD_ID: user[FIELD_ID]
     }
     return jsonify(response), 200
 
 
 def validate_token(token):
     try:
-    	jwt_body = jwt.decode(
-    	    token,
-    	    current_app.config['SECRET_KEY'],
-    	    JWT_ALGORITHM
-    	)
+    	jwt_body = decode_token(token)
     except jwt.exceptions.InvalidTokenError as e:
         current_app.logger.warning(e)
         return TOKEN_INVALID
@@ -216,7 +178,7 @@ def validate_token(token):
 
     query = (
         f"SELECT * FROM {DB_TABLE_USERS} "
-        f"WHERE username = '{jwt_body[FIELD_USERNAME]}';"
+        f"WHERE name = '{jwt_body[FIELD_USERNAME]}';"
     )
     user = fetchone_by_pattern_attribute_value(DB_TABLE_USERS, query)
 
@@ -234,6 +196,39 @@ def validate_token(token):
         return TOKEN_EXPIRED
 
     return TOKEN_VALID
+
+
+def decode_token(token):
+    return jwt.decode(
+        token,
+        current_app.config['SECRET_KEY'],
+        JWT_ALGORITHM
+    )
+
+
+@bp.post('/delete_user')
+def delete_user():
+    fields = [FIELD_TOKEN]
+    if not check_json_fields_existance(fields, request.json):
+        return jsonify(constants.WRONG_FORMAT), 400
+
+    token = str(request.json[FIELD_TOKEN])
+    token_status = validate_token(token)
+    if token_status[FIELD_STATUS] == STATUS_BAD:
+        return jsonify(token_status), 400
+   
+    user_id = decode_token(token)[FIELD_ID]
+    query = (
+        f"delete from {DB_TABLE_USERS}\n"
+        f"where id = '{user_id}';"
+    )
+    db = get_db()
+    db.cursor().execute(
+        query
+    )
+    db.commit()
+
+    return jsonify(token_status), 200
 
 
 @bp.post('/auth_test')
