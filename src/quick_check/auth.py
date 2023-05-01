@@ -59,6 +59,20 @@ TOKEN_EXPIRED = {
 
 DB_TABLE_USERS = 't_user'
 
+
+def create_jwt_token(user_id, user_name):
+    return jwt.encode(
+        {
+            FIELD_ID: user_id,
+            FIELD_USERNAME: user_name,
+            FIELD_EXPIRES: str(datetime.datetime.utcnow() +
+                               datetime.timedelta(minutes=10000))
+        },
+        current_app.config['SECRET_KEY'],
+        JWT_ALGORITHM
+    )
+
+
 @bp.post('/register')
 def register():
     fields = [FIELD_USERNAME, FIELD_PASSWORD, FIELD_EMAIL]
@@ -102,9 +116,18 @@ def register():
         }
         return jsonify(response), 400
 
+
+    user = fetchone_by_pattern_attribute_value(
+        DB_TABLE_USERS,
+        f"SELECT * FROM {DB_TABLE_USERS} WHERE name = '{username}';"
+    )
+    user_id = user[FIELD_ID]
+    token = create_jwt_token(user_id, username)
     response = {
         FIELD_STATUS: STATUS_OK,
-        FIELD_MESSAGE: 'user created, try to login now'
+        FIELD_MESSAGE: 'user created, try to login now',
+        FIELD_TOKEN: token,
+        FIELD_ID: user_id
     }
     return jsonify(response), 200
 
@@ -145,17 +168,7 @@ def login():
         }
         return jsonify(response), 400
 
-    token = jwt.encode(
-        {
-            FIELD_ID: user[FIELD_ID],
-            FIELD_USERNAME: username,
-            FIELD_EXPIRES: str(datetime.datetime.utcnow() +
-                               datetime.timedelta(minutes=10000))
-        },
-        current_app.config['SECRET_KEY'],
-        JWT_ALGORITHM
-    )
-
+    token = create_jwt_token(user[FIELD_ID], username)
     response = {
         FIELD_STATUS: STATUS_OK,
         FIELD_MESSAGE: 'logged in, token generated',
