@@ -60,14 +60,22 @@ TOKEN_EXPIRED = {
 DB_TABLE_USERS = 't_user'
 
 
-def create_jwt_token(user_id, user_name):
+def create_jwt_token(user_id, user_email):
     return jwt.encode(
         {
             FIELD_ID: user_id,
-            FIELD_USERNAME: user_name,
+            FIELD_EMAIL: user_email,
             FIELD_EXPIRES: str(datetime.datetime.utcnow() +
                                datetime.timedelta(minutes=10000))
         },
+        current_app.config['SECRET_KEY'],
+        JWT_ALGORITHM
+    )
+
+
+def decode_token(token):
+    return jwt.decode(
+        token,
         current_app.config['SECRET_KEY'],
         JWT_ALGORITHM
     )
@@ -119,7 +127,7 @@ def register():
 
     user = fetchone_by_pattern_attribute_value(
         DB_TABLE_USERS,
-        f"SELECT * FROM {DB_TABLE_USERS} WHERE name = '{username}';"
+        f"SELECT * FROM {DB_TABLE_USERS} WHERE email = '{email}';"
     )
     user_id = user[FIELD_ID]
     token = create_jwt_token(user_id, username)
@@ -134,32 +142,27 @@ def register():
 
 @bp.post('/login')
 def login():
-    def does_user_exist(user):
-        return user is not None
-
-    def is_password_hash_correct(user, password):
-        return check_password_hash(user[FIELD_PASSWORD], password)
-
     def is_user_correct(user, password):
-        if not does_user_exist(user):
-            return False
-
-        if not is_password_hash_correct(user, password):
+        if not (
+            user and
+            check_password_hash(user[FIELD_PASSWORD], password)
+        ):
             return False
 
         return True
 
-    fields = [FIELD_USERNAME, FIELD_PASSWORD]
+    fields = [FIELD_EMAIL, FIELD_PASSWORD]
     if not check_json_fields_existance(fields, request.json):
         return jsonify(constants.WRONG_FORMAT), 400
 
-    username = str(request.json[FIELD_USERNAME])
+    email = str(request.json[FIELD_EMAIL])
     password = str(request.json[FIELD_PASSWORD])
 
     user = fetchone_by_pattern_attribute_value(
         DB_TABLE_USERS,
-        f"SELECT * FROM {DB_TABLE_USERS} WHERE name = '{username}';"
+        f"SELECT * FROM {DB_TABLE_USERS} WHERE email = '{email}';"
     )
+    current_app.logger.warning(user)
 
     if not is_user_correct(user, password):
         response = {
@@ -168,7 +171,7 @@ def login():
         }
         return jsonify(response), 400
 
-    token = create_jwt_token(user[FIELD_ID], username)
+    token = create_jwt_token(user[FIELD_ID], email)
     response = {
         FIELD_STATUS: STATUS_OK,
         FIELD_MESSAGE: 'logged in, token generated',
@@ -185,17 +188,17 @@ def validate_token(token):
         current_app.logger.warning(e)
         return TOKEN_INVALID
 
-    fields = [FIELD_USERNAME, FIELD_EXPIRES]
+    fields = [FIELD_EMAIL, FIELD_EXPIRES]
     if not check_json_fields_existance(fields, jwt_body):
         return TOKEN_INVALID
 
     query = (
         f"SELECT * FROM {DB_TABLE_USERS} "
-        f"WHERE name = '{jwt_body[FIELD_USERNAME]}';"
+        f"WHERE email = '{jwt_body[FIELD_EMAIL]}';"
     )
     user = fetchone_by_pattern_attribute_value(DB_TABLE_USERS, query)
 
-    if user is None:
+    if not user:
         return TOKEN_INVALID
 
     permitted_time = datetime.datetime.strptime(
@@ -211,14 +214,6 @@ def validate_token(token):
     return TOKEN_VALID
 
 
-def decode_token(token):
-    return jwt.decode(
-        token,
-        current_app.config['SECRET_KEY'],
-        JWT_ALGORITHM
-    )
-
-
 @bp.post('/delete_user')
 def delete_user():
     fields = [FIELD_TOKEN]
@@ -229,15 +224,14 @@ def delete_user():
     token_status = validate_token(token)
     if token_status[FIELD_STATUS] == STATUS_BAD:
         return jsonify(token_status), 400
-   
+  
     user_id = decode_token(token)[FIELD_ID]
-    query = (
-        f"delete from {DB_TABLE_USERS}\n"
-        f"where id = '{user_id}';"
-    )
+    current_app.logger.warning(user_id)
+    
     db = get_db()
     db.cursor().execute(
-        query
+        f"delete from {DB_TABLE_USERS}\n"
+        f"where id = '{user_id}';"
     )
     db.commit()
 

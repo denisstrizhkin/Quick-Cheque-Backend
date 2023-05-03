@@ -103,7 +103,7 @@ def test_register_and_login():
     print(x.status_code, x.text)
     
     data = {
-        'username': 'admin',
+        'email': 'admin@test.com',
         'password': 'adminadmin'
     }
     x = requests.post(LOGIN_URL, json=data)
@@ -129,7 +129,7 @@ def test_add_rooms():
     requests.post(REGISTER_URL, json=data)
     
     data = {
-        'username': 'admin',
+        'email': 'admin@test.com',
         'password': 'adminadmin'
     }
     x = requests.post(LOGIN_URL, json=data)
@@ -175,7 +175,7 @@ def test_add_cheques():
     requests.post(REGISTER_URL, json=data)
     
     data = {
-        'username': 'admin',
+        'email': 'admin@test.com',
         'password': 'adminadmin'
     }
     x = requests.post(LOGIN_URL, json=data)
