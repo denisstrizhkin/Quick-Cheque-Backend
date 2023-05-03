@@ -130,12 +130,9 @@ def register():
         f"SELECT * FROM {DB_TABLE_USERS} WHERE email = '{email}';"
     )
     user_id = user[FIELD_ID]
-    token = create_jwt_token(user_id, username)
     response = {
         FIELD_STATUS: STATUS_OK,
         FIELD_MESSAGE: 'user created, try to login now',
-        FIELD_TOKEN: token,
-        FIELD_ID: user_id
     }
     return jsonify(response), 200
 
