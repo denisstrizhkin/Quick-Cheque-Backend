@@ -24,6 +24,7 @@ FIELD_ROOM_ID = 'room_id'
 
 DB_TABLE_ROOMS = 't_room'
 DB_TABLE_CHEQUES = 't_cheque'
+DB_TABLE_ROOMS_ASSOC = 't_room_associative'
 
 
 bp = Blueprint('logic', __name__, url_prefix='/api')
@@ -100,7 +101,10 @@ def get_rooms():
     user_id = decode_token(token)[FIELD_ID]
     cur = get_db().cursor()
     cur.execute(
-        f"select * from {DB_TABLE_ROOMS};"
+        f"select a.id, a.name, a.owner_id\n"
+        f"from {DB_TABLE_ROOMS} a\n"
+        f"join {DB_TABLE_ROOMS_ASSOC} b on a.id = b.room_id"
+        f"where b.user_id = {user_id}"
     )
     rooms = cur.fetchall()
     rooms_list = []

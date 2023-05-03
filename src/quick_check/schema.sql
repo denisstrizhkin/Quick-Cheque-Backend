@@ -1,3 +1,4 @@
+drop table if exists t_room_associative;
 drop table if exists t_product_item;
 drop table if exists t_room_user_assoc;
 drop table if exists t_cheque;
@@ -40,6 +41,12 @@ create table t_product_item (
   room_id int         not null references t_room(id)
 );
 
+create table t_room_associative (
+  room_id int not null references t_room(id),
+  user_id int not null references t_user(id),
+
+  primary key (user_id, room_id)
+);
 
 --ProductID (FK -> ProductItem, int)
 --UserID (FK -> User, int)
