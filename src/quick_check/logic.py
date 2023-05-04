@@ -87,8 +87,7 @@ def delete_room():
     return jsonify(response), 200
 
 
-def get_rooms(token, query):
-    user_id = decode_token(token)[FIELD_ID]
+def get_rooms(query):
     cur = get_db().cursor()
     cur.execute(query)
     rooms = cur.fetchall()
@@ -113,8 +112,8 @@ def get_rooms_admin():
     if token_status[FIELD_STATUS] == STATUS_BAD:
         return jsonify(token_status), 400
 
+    user_id = decode_token(token)[FIELD_ID]
     rooms_list = get_rooms(
-        token,
         f"select *\n"
         f"from {DB_TABLE_ROOMS}\n"
         f"where owner_id = {user_id}"
@@ -137,8 +136,9 @@ def get_rooms_member():
     if token_status[FIELD_STATUS] == STATUS_BAD:
         return jsonify(token_status), 400
    
+    
+    user_id = decode_token(token)[FIELD_ID]
     rooms_list = get_rooms(
-        token,
         f"select a.id, a.name, a.owner_id\n"
         f"from {DB_TABLE_ROOMS} a\n"
         f"join {DB_TABLE_ROOMS_ASSOC} b on a.id = b.room_id\n"
