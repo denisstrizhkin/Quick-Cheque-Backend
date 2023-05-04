@@ -151,6 +151,44 @@ def get_rooms_member():
     return jsonify(response), 200
 
 
+@bp.post('/join_room')
+def join_room():
+    fields = [FIELD_TOKEN, FIELD_ID]
+    if not check_json_fields_existance(fields, request.json):
+        return jsonify(constants.WRONG_FORMAT), 400
+    
+    token = str(request.json[FIELD_TOKEN])
+    token_status = validate_token(token)
+    if token_status[FIELD_STATUS] == STATUS_BAD:
+        return jsonify(token_status), 400
+   
+    user_id = decode_token(token)[FIELD_ID]
+    room_id = request.json[FIELD_ID]
+
+    try:
+        get_db().cursor().execute(
+            f"insert into {DB_TABLE_ROOMS_ASSOC}\n"
+            f"values ({user_id, room_id});"
+        )
+        get_db().commit();
+        response = {
+            FIELD_MESSAGE : "joined room successfuly",
+            FIELD_STATUS : STATUS_OK
+        }
+    except Exception as e:
+        response = {
+            FIELD_MESSAGE : "join failed",
+            FIELD_STATUS : STATUS_BAD
+        }
+    
+    return jsonify(response), 200
+
+
+@bp.post('/delete_member')
+def delete_member():
+    return 400
+
+
 @bp.post('/add_cheque')
 def add_cheque():
     fields = [FIELD_TOKEN, FIELD_ROOM_ID, FIELD_NAME]

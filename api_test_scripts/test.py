@@ -165,6 +165,51 @@ def test_add_rooms():
     requests.post(DELETE_URL, json=data)
 
 
+def test_join_room():
+    print('### test_join_rooms (get_rooms_member) ###')
+
+    data = {
+        'email': 'admin@test.com',
+        'username': 'admin',
+        'password': 'adminadmin'
+    }
+    requests.post(REGISTER_URL, json=data)
+    
+    data = {
+        'email': 'admin@test.com',
+        'password': 'adminadmin'
+    }
+    x = requests.post(LOGIN_URL, json=data)
+    info = json.loads(x.text)
+
+    data = {
+        'token': info['token'],
+        'name': 'room1'
+    }
+    x = requests.post(ADD_ROOM_URL, json=data)
+    print(x.status_code, x.text)
+
+    data = {
+        'token': info['token'],
+        'name': 'room2'
+    }
+    x = requests.post(ADD_ROOM_URL, json=data)
+    print(x.status_code, x.text)
+
+    data = {
+        'token': info['token'],
+    }
+    x = requests.post(GET_ROOMS_ADMIN_URL, json=data)
+    print(x.status_code, x.text)
+    x = requests.post(DELETE_ROOMS_URL, json=data)
+    print(x.status_code, x.text)
+    
+    data = {
+        'token': info['token'],
+        'id' : info['id']
+    }
+    requests.post(DELETE_URL, json=data)
+
 def test_add_cheques():
     print('### test_add_cheques ###')
 
@@ -235,6 +280,7 @@ def main():
     test_register_and_login()
 
     test_add_rooms()
+    test_join_room()
     #test_add_cheques()
 
 
