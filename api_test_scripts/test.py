@@ -11,9 +11,13 @@ LOGIN_URL= API_URL + "/login"
 DELETE_URL= API_URL + "/delete_user"
 
 ADD_ROOM_URL = API_URL + "/add_room"
+DELETE_ROOMS_URL = API_URL + "/delete_room"
+
 GET_ROOMS_ADMIN_URL = API_URL + "/get_rooms_admin"
 GET_ROOMS_MEMBER_URL = API_URL + "/get_rooms_member"
-DELETE_ROOMS_URL = API_URL + "/delete_room"
+
+JOIN_ROOM_URL = API_URL + "/join_room"
+DELETE_MEMBER_URL = API_URL + "/delete_member"
 
 ADD_CHEQUE_URL = API_URL + "/add_cheque"
 GET_CHEQUES_URL = API_URL + "/get_cheques"
@@ -27,6 +31,25 @@ DELETE_CHEQUE_URL = API_URL + "/delete_cheque"
 #MIN_PASSWORD = 8
 #
 #MAX_EMAIL = 40
+
+
+def create_user(letter):
+    data = {
+        'email': f'adminX{letter}@test.com',
+        'username': f'adminX{letter}',
+        'password': 'adminadmin'
+    }
+    return requests.post(REGISTER_URL, json=data)
+
+
+def get_token(letter):
+    data = {
+        'email': f'adminX{letter}@test.com',
+        'password': 'adminadmin'
+    }
+    x = requests.post(LOGIN_URL, json=data)
+    info = json.loads(x.text)
+    return info['id'], info['token']
 
 
 def test_wrong_password():
@@ -122,36 +145,25 @@ def test_register_and_login():
 def test_add_rooms():
     print('### test_add_rooms (get_rooms_admin) ###')
 
-    data = {
-        'email': 'admin@test.com',
-        'username': 'admin',
-        'password': 'adminadmin'
-    }
-    requests.post(REGISTER_URL, json=data)
+    resp = create_user('a')
+    (id_a, token_a) = get_token('a')
     
     data = {
-        'email': 'admin@test.com',
-        'password': 'adminadmin'
-    }
-    x = requests.post(LOGIN_URL, json=data)
-    info = json.loads(x.text)
-
-    data = {
-        'token': info['token'],
+        'token': token_a,
         'name': 'room1'
     }
     x = requests.post(ADD_ROOM_URL, json=data)
     print(x.status_code, x.text)
 
     data = {
-        'token': info['token'],
+        'token': token_a,
         'name': 'room2'
     }
     x = requests.post(ADD_ROOM_URL, json=data)
     print(x.status_code, x.text)
 
     data = {
-        'token': info['token'],
+        'token': token_a,
     }
     x = requests.post(GET_ROOMS_ADMIN_URL, json=data)
     print(x.status_code, x.text)
@@ -159,8 +171,8 @@ def test_add_rooms():
     print(x.status_code, x.text)
     
     data = {
-        'token': info['token'],
-        'id' : info['id']
+        'token': token_a,
+        'id' : id_a
     }
     requests.post(DELETE_URL, json=data)
 
@@ -168,47 +180,56 @@ def test_add_rooms():
 def test_join_room():
     print('### test_join_rooms (get_rooms_member) ###')
 
-    data = {
-        'email': 'admin@test.com',
-        'username': 'admin',
-        'password': 'adminadmin'
-    }
-    requests.post(REGISTER_URL, json=data)
+    resp = create_user('a')
+    (id_a, token_a) = get_token('a')
+    
+    resp = create_user('b')
+    (id_b, token_b) = get_token('b')
     
     data = {
-        'email': 'admin@test.com',
-        'password': 'adminadmin'
-    }
-    x = requests.post(LOGIN_URL, json=data)
-    info = json.loads(x.text)
-
-    data = {
-        'token': info['token'],
-        'name': 'room1'
+        'token': token_a,
+        'name': 'room'
     }
     x = requests.post(ADD_ROOM_URL, json=data)
     print(x.status_code, x.text)
-
-    data = {
-        'token': info['token'],
-        'name': 'room2'
-    }
-    x = requests.post(ADD_ROOM_URL, json=data)
-    print(x.status_code, x.text)
-
-    data = {
-        'token': info['token'],
-    }
     x = requests.post(GET_ROOMS_ADMIN_URL, json=data)
     print(x.status_code, x.text)
+
+    room_id = json.loads(x.text)['message'][0]['id']
+    data = {
+        'token': token_b,
+        'id': room_id
+    }
+    x = requests.post(JOIN_ROOM_URL, json=data)
+    print(x.status_code, x.text)
+
+
+    data = {
+        'token': token_a,
+        'room_id': room_id,
+        'user_id': id_b
+    }
+    x = requests.post(DELETE_MEMBER_URL, json=data)
+    print(x.status_code, x.text)
+
+    data = {
+        'token': token_a,
+    }
     x = requests.post(DELETE_ROOMS_URL, json=data)
     print(x.status_code, x.text)
     
     data = {
-        'token': info['token'],
-        'id' : info['id']
+        'token': token_a,
+        'id' : id_a
     }
     requests.post(DELETE_URL, json=data)
+    
+    data = {
+        'token': token_b,
+        'id' : id_b
+    }
+    requests.post(DELETE_URL, json=data)
+
 
 def test_add_cheques():
     print('### test_add_cheques ###')

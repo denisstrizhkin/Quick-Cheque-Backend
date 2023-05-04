@@ -162,13 +162,14 @@ def join_room():
     if token_status[FIELD_STATUS] == STATUS_BAD:
         return jsonify(token_status), 400
    
-    user_id = decode_token(token)[FIELD_ID]
-    room_id = request.json[FIELD_ID]
+    user_id = int(decode_token(token)[FIELD_ID])
+    room_id = int(request.json[FIELD_ID])
 
     try:
         get_db().cursor().execute(
             f"insert into {DB_TABLE_ROOMS_ASSOC}\n"
-            f"values ({user_id, room_id});"
+            f"(user_id, room_id)\n"
+            f"values ({user_id}, {room_id});"
         )
         get_db().commit();
         response = {
@@ -186,7 +187,36 @@ def join_room():
 
 @bp.post('/delete_member')
 def delete_member():
-    return 400
+    fields = [FIELD_TOKEN, FIELD_ROOM_ID, FIELD_USER_ID]
+    if not check_json_fields_existance(fields, request.json):
+        return jsonify(constants.WRONG_FORMAT), 400
+    
+    token = str(request.json[FIELD_TOKEN])
+    token_status = validate_token(token)
+    if token_status[FIELD_STATUS] == STATUS_BAD:
+        return jsonify(token_status), 400
+   
+    user_id = int(decode_token(token)[FIELD_ID])
+    room_id = int(request.json[FIELD_ROOM_ID])
+    delete_id = int(request.json[FIELD_USER_ID])
+
+    try:
+        get_db().cursor().execute(
+            f"delete from {DB_TABLE_ROOMS_ASSOC}\n"
+            f"where room_id = {room_id} and user_id = {user_id};"
+        )
+        get_db().commit();
+        response = {
+            FIELD_MESSAGE : "deleted member successfuly",
+            FIELD_STATUS : STATUS_OK
+        }
+    except Exception as e:
+        response = {
+            FIELD_MESSAGE : "delete failed",
+            FIELD_STATUS : STATUS_BAD
+        }
+    
+    return jsonify(response), 200
 
 
 @bp.post('/add_cheque')

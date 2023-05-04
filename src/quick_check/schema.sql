@@ -42,8 +42,8 @@ create table t_product_item (
 );
 
 create table t_room_associative (
-  room_id int not null references t_room(id),
-  user_id int not null references t_user(id),
+  room_id int not null references t_room(id) on delete cascade,
+  user_id int not null references t_user(id) on delete cascade,
 
   primary key (user_id, room_id)
 );
