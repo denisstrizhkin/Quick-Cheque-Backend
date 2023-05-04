@@ -87,8 +87,47 @@ def delete_room():
     return jsonify(response), 200
 
 
-@bp.post('/get_rooms')
-def get_rooms():
+def get_rooms(token, query):
+    user_id = decode_token(token)[FIELD_ID]
+    cur = get_db().cursor()
+    cur.execute(query)
+    rooms = cur.fetchall()
+    rooms_list = []
+    for room in rooms:
+        rooms_list.append({
+            FIELD_ID : room[0],
+            FIELD_NAME : room[1],
+            FIELD_OWNER_ID : room[2]
+        })
+    return rooms_list
+
+
+@bp.post('/get_rooms_admin')
+def get_rooms_admin():
+    fields = [FIELD_TOKEN]
+    if not check_json_fields_existance(fields, request.json):
+        return jsonify(constants.WRONG_FORMAT), 400
+    
+    token = str(request.json[FIELD_TOKEN])
+    token_status = validate_token(token)
+    if token_status[FIELD_STATUS] == STATUS_BAD:
+        return jsonify(token_status), 400
+
+    rooms_list = get_rooms(
+        token,
+        f"select *\n"
+        f"from {DB_TABLE_ROOMS}\n"
+        f"where owner_id = {user_id}"
+    )
+    response = {
+        FIELD_MESSAGE : rooms_list,
+        FIELD_STATUS : STATUS_OK
+    }
+    return jsonify(response), 200
+
+
+@bp.post('/get_rooms_member')
+def get_rooms_member():
     fields = [FIELD_TOKEN]
     if not check_json_fields_existance(fields, request.json):
         return jsonify(constants.WRONG_FORMAT), 400
@@ -98,28 +137,17 @@ def get_rooms():
     if token_status[FIELD_STATUS] == STATUS_BAD:
         return jsonify(token_status), 400
    
-    user_id = decode_token(token)[FIELD_ID]
-    cur = get_db().cursor()
-    cur.execute(
+    rooms_list = get_rooms(
+        token,
         f"select a.id, a.name, a.owner_id\n"
         f"from {DB_TABLE_ROOMS} a\n"
-        f"join {DB_TABLE_ROOMS_ASSOC} b on a.id = b.room_id"
+        f"join {DB_TABLE_ROOMS_ASSOC} b on a.id = b.room_id\n"
         f"where b.user_id = {user_id}"
     )
-    rooms = cur.fetchall()
-    rooms_list = []
-    for room in rooms:
-        rooms_list.append({
-            FIELD_ID : room[0],
-            FIELD_NAME : room[1],
-            FIELD_OWNER_ID : room[2]
-        })
-
     response = {
         FIELD_MESSAGE : rooms_list,
         FIELD_STATUS : STATUS_OK
     }
-
     return jsonify(response), 200
 
 

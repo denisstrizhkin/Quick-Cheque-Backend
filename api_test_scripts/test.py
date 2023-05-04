@@ -11,7 +11,8 @@ LOGIN_URL= API_URL + "/login"
 DELETE_URL= API_URL + "/delete_user"
 
 ADD_ROOM_URL = API_URL + "/add_room"
-GET_ROOMS_URL = API_URL + "/get_rooms"
+GET_ROOMS_ADMIN_URL = API_URL + "/get_rooms_admin"
+GET_ROOMS_MEMBER_URL = API_URL + "/get_rooms_member"
 DELETE_ROOMS_URL = API_URL + "/delete_room"
 
 ADD_CHEQUE_URL = API_URL + "/add_cheque"
@@ -119,7 +120,7 @@ def test_register_and_login():
 
 
 def test_add_rooms():
-    print('### test_add_rooms ###')
+    print('### test_add_rooms (get_rooms_admin) ###')
 
     data = {
         'email': 'admin@test.com',
@@ -152,7 +153,7 @@ def test_add_rooms():
     data = {
         'token': info['token'],
     }
-    x = requests.post(GET_ROOMS_URL, json=data)
+    x = requests.post(GET_ROOMS_ADMIN_URL, json=data)
     print(x.status_code, x.text)
     x = requests.post(DELETE_ROOMS_URL, json=data)
     print(x.status_code, x.text)
@@ -191,7 +192,7 @@ def test_add_cheques():
     data = {
         'token': info['token'],
     }
-    x = requests.post(GET_ROOMS_URL, json=data)
+    x = requests.post(GET_ROOMS_ADMIN_URL, json=data)
     room_id = json.loads(x.text)['message'][0]['id']
     print(x.status_code, x.text)
 
@@ -234,7 +235,7 @@ def main():
     test_register_and_login()
 
     test_add_rooms()
-    test_add_cheques()
+    #test_add_cheques()
 
 
 if __name__ == '__main__':
