@@ -139,15 +139,6 @@ def register():
 
 @bp.post('/login')
 def login():
-    def is_user_correct(user, password):
-        if not (
-            user and
-            check_password_hash(user[FIELD_PASSWORD], password)
-        ):
-            return False
-
-        return True
-
     fields = [FIELD_EMAIL, FIELD_PASSWORD]
     if not check_json_fields_existance(fields, request.json):
         return jsonify(constants.WRONG_FORMAT), 400
@@ -161,10 +152,17 @@ def login():
     )
     current_app.logger.warning(user)
 
-    if not is_user_correct(user, password):
+    if not user:
         response = {
             FIELD_STATUS: STATUS_BAD,
-            FIELD_MESSAGE: 'wrong username or password'
+            FIELD_MESSAGE: 'user does not exist'
+        }
+        return jsonify(response), 400
+
+    if not check_password_hash(user[FIELD_PASSWORD], password):
+        response = {
+            FIELD_STATUS: STATUS_BAD,
+            FIELD_MESSAGE: 'wrong password'
         }
         return jsonify(response), 400
 
