@@ -203,6 +203,12 @@ def test_join_room():
     x = requests.post(JOIN_ROOM_URL, json=data)
     print(x.status_code, x.text)
 
+    data = {
+        'token': token_a,
+        'name': 'room'
+    }
+    x = requests.post(GET_ROOMS_ADMIN_URL, json=data)
+    print(x.status_code, x.text)
 
     data = {
         'token': token_a,
@@ -269,6 +275,13 @@ def test_add_cheques():
     }
     x = requests.post(ADD_CHEQUE_URL, json=data)
     print(x.status_code, x.text)
+
+    data = {
+        'token': info['token'],
+        'username': 'admin'
+    }
+    x = requests.post(GET_ROOMS_ADMIN_URL, json=data)
+    print(x.status_code, x.text)
     
     data = {
         'token': info['token'],
@@ -302,7 +315,7 @@ def main():
 
     test_add_rooms()
     test_join_room()
-    #test_add_cheques()
+    test_add_cheques()
 
 
 if __name__ == '__main__':

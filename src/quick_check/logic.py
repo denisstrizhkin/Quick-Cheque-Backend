@@ -25,6 +25,7 @@ FIELD_ROOM_ID = 'room_id'
 DB_TABLE_ROOMS = 't_room'
 DB_TABLE_CHEQUES = 't_cheque'
 DB_TABLE_ROOMS_ASSOC = 't_room_associative'
+DB_TABLE_USERS = 't_user'
 
 
 bp = Blueprint('logic', __name__, url_prefix='/api')
@@ -45,15 +46,18 @@ def add_room():
    
     user_id = decode_token(token)[FIELD_ID]
     db = get_db()
-    db.cursor().execute(
+    cur = db.cursor()
+    cur.execute(
         f"insert into {DB_TABLE_ROOMS} (name, owner_id)"
-        "values (%s, %s)",
+        "values (%s, %s) returning id",
         (name, user_id)
     )
+    new_id = cur.fetchone()[0]
     db.commit()
 
     response = {
         FIELD_MESSAGE : 'room was added successfully',
+        FIELD_ID : new_id,
         FIELD_STATUS : STATUS_OK
     }
 
@@ -88,13 +92,41 @@ def delete_room():
 
 
 def get_rooms(query):
-    cur = get_db().cursor()
+    db = get_db()
+    cur = db.cursor()
     cur.execute(query)
     rooms = cur.fetchall()
     rooms_list = []
     for room in rooms:
+        # get members list
+        id = room[0]
+        cur = db.cursor()
+        cur.execute(
+            f"select a.user_id, b.name\n"
+            f"from {DB_TABLE_ROOMS_ASSOC} a\n"
+            f"join {DB_TABLE_USERS} b on a.user_id = b.id\n"
+            f"where a.room_id = {id}"
+        )
+        members_fetch = cur.fetchall()
+        members = []
+        for member in members_fetch:
+            members.append({
+                "id": member[0],
+                "name": member[1]
+            })
+
+        # get cheque count
+        cur = db.cursor()
+        cur.execute(
+            f"select count(*)\n"
+            f"from {DB_TABLE_CHEQUES}"
+        )
+        cnt = cur.fetchone()[0]
+
         rooms_list.append({
-            FIELD_ID : room[0],
+            "members": members,
+            "cheque_cnt": cnt,
+            FIELD_ID : id,
             FIELD_NAME : room[1],
             FIELD_OWNER_ID : room[2]
         })
